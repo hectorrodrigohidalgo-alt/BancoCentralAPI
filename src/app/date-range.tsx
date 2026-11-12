@@ -1,16 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getTodayInSantiago } from "../lib/dates";
 
 export default function DateRange() {
-  const [today] = useState(() => {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/Santiago",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-  });
+  const [today] = useState(getTodayInSantiago);
 
   useEffect(() => {
     const query = new URLSearchParams({
