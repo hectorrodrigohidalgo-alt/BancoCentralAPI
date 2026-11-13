@@ -81,3 +81,20 @@ test("Rechaza fechas futuras desde el endpoint usando America/Santiago", async (
   }
   assert.equal(fetchMock.mock.callCount(), 0);
 });
+
+test("Permite consultar un solo día desde el endpoint", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-11-12T01:00:00Z") });
+  const observations = [{ indexDateString: "11-11-2026", value: "950.25", statusCode: "OK" }];
+  const fetchMock = t.mock.method(globalThis, "fetch", async () =>
+    Response.json({ Codigo: 0, Series: { Obs: observations } }),
+  );
+  const { GET } = await import("../src/app/api/dollar/route.ts");
+  const response = await GET(new Request("http://localhost/api/dollar?startDate=2026-11-11&endDate=2026-11-11"));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), observations);
+  assert.equal(fetchMock.mock.callCount(), 1);
+  const url = new URL(fetchMock.mock.calls[0].arguments[0]);
+  assert.equal(url.searchParams.get("firstdate"), "2026-11-11");
+  assert.equal(url.searchParams.get("lastdate"), "2026-11-11");
+});
