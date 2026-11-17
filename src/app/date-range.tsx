@@ -7,7 +7,7 @@ import DollarChart from "./dollar-chart";
 
 export default function DateRange() {
   const [today] = useState(getTodayInSantiago);
-  // Conservamos el error del rango y los datos que recibe el componente del gráfico.
+  // Conservamos el error del rango o del servicio y los datos que recibe el gráfico.
   const [error, setError] = useState("");
   const [observations, setObservations] = useState<DollarObservation[]>([]);
   // Empieza en true porque la primera consulta se hace al montar el componente.
@@ -22,7 +22,15 @@ export default function DateRange() {
     });
     // Convertimos la respuesta JSON en el estado del gráfico; null se trata como una lista vacía.
     // La consulta pasa por nuestro servidor, que mantiene privado el token del Banco Central.
-    void fetch(`/api/dollar?${query}`).then((response) => response.json()).then((data) => setObservations(data ?? [])).finally(() => setIsLoading(false));
+    // Una respuesta HTTP fallida se convierte en error y se muestra un aviso al visitante.
+    void fetch(`/api/dollar?${query}`)
+      .then((response) => {
+        if (!response.ok) throw new Error("Consulta fallida");
+        return response.json();
+      })
+      .then((data) => setObservations(data ?? []))
+      .catch(() => setError("No fue posible consultar el dólar. Intenta nuevamente."))
+      .finally(() => setIsLoading(false));
   }, [today]);
 
   return (
@@ -41,7 +49,15 @@ export default function DateRange() {
       setError("");
       setIsLoading(true);
       const query = new URLSearchParams({ startDate, endDate });
-      void fetch(`/api/dollar?${query}`).then((response) => response.json()).then((data) => setObservations(data ?? [])).finally(() => setIsLoading(false));
+      // Capturamos el fallo también al consultar fechas elegidas, sin confundirlo con datos vacíos.
+      void fetch(`/api/dollar?${query}`)
+        .then((response) => {
+          if (!response.ok) throw new Error("Consulta fallida");
+          return response.json();
+        })
+        .then((data) => setObservations(data ?? []))
+        .catch(() => setError("No fue posible consultar el dólar. Intenta nuevamente."))
+        .finally(() => setIsLoading(false));
     }}>
       <label>
         Fecha inicial <input type="date" name="startDate" max={today} defaultValue={`${today.slice(0, 7)}-01`} />
@@ -53,8 +69,12 @@ export default function DateRange() {
       {/* El mensaje permanece visible mientras haya una consulta marcada como pendiente. */}
       {isLoading && <p role="status">Cargando…</p>}
       {error && <p role="alert">{error}</p>}
-      {/* Al actualizar observations, el gráfico recibe los datos nuevos mediante esta prop. */}
-      <DollarChart observations={observations} />
+      {/* El mensaje aparece al finalizar la carga, si no hay error ni observaciones. */}
+      {!isLoading && !error && observations.length === 0 && (
+        <p>Sin datos para el período seleccionado.</p>
+      )}
+      {/* Solo dibujamos si hay observaciones; esta prop entrega los datos nuevos al gráfico. */}
+      {observations.length > 0 && <DollarChart observations={observations} />}
     </form>
   );
 }
