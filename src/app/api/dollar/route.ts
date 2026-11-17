@@ -18,6 +18,14 @@ export async function GET(request: Request) {
       { status: 400 },
     );
   }
-  const observations = await getDollarSeries(startDate, endDate);
-  return Response.json(observations);
+  // Convertimos el fallo del proveedor en HTTP 502 sin exponer credenciales ni detalles internos.
+  try {
+    const observations = await getDollarSeries(startDate, endDate);
+    return Response.json(observations);
+  } catch {
+    return Response.json(
+      { error: "No fue posible consultar el dólar. Intenta nuevamente." },
+      { status: 502 },
+    );
+  }
 }

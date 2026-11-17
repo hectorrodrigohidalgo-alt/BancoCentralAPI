@@ -17,5 +17,9 @@ export async function getDollarSeries(startDate: string, endDate: string): Promi
   }).toString();
   const response = await fetch(url);
   const data = await response.json();
+  // HTTP 200 no garantiza éxito: solo aceptamos el código 0 del Banco Central.
+  if (data.Codigo !== 0) {
+    throw new Error("Error en la consulta al Banco Central");
+  }
   return data.Series.Obs;
 }

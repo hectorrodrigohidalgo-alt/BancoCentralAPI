@@ -98,3 +98,23 @@ test("Permite consultar un solo día desde el endpoint", async (t) => {
   assert.equal(url.searchParams.get("firstdate"), "2026-11-11");
   assert.equal(url.searchParams.get("lastdate"), "2026-11-11");
 });
+
+test("Devuelve HTTP 502 ante un error del Banco Central recibido con HTTP 200", async (t) => {
+  // Simulamos errores en el cuerpo JSON aunque el proveedor responda con HTTP 200.
+  let code = -5;
+  const fetchMock = t.mock.method(globalThis, "fetch", async () => Response.json({
+    Codigo: code, Descripcion: "Detalle interno del proveedor", Series: { Obs: null },
+  }));
+  const { GET } = await import("../src/app/api/dollar/route.ts");
+
+  // La misma regla debe cubrir un código conocido y otro desconocido, sin reenviar detalles internos.
+  for (const errorCode of [-5, 12345]) {
+    code = errorCode;
+    const response = await GET(new Request("http://localhost/api/dollar?startDate=2026-11-02&endDate=2026-11-10"));
+    assert.equal(response.status, 502);
+    assert.deepEqual(await response.json(), {
+      error: "No fue posible consultar el dólar. Intenta nuevamente.",
+    });
+  }
+  assert.equal(fetchMock.mock.callCount(), 2);
+});
