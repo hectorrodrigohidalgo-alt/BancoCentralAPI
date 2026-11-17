@@ -118,3 +118,25 @@ test("Devuelve HTTP 502 ante un error del Banco Central recibido con HTTP 200", 
   }
   assert.equal(fetchMock.mock.callCount(), 2);
 });
+
+test("Excluye observaciones sin valor válido sin convertirlas en cero", async (t) => {
+  // Mezclamos valores válidos con datos ausentes o inválidos que no deben llegar al gráfico.
+  t.mock.method(globalThis, "fetch", async () => Response.json({ Codigo: 0, Series: { Obs: [
+    { indexDateString: "02-11-2026", value: "950.25", statusCode: "OK" },
+    { indexDateString: "03-11-2026", value: "", statusCode: "OK" },
+    { indexDateString: "04-11-2026", value: "   ", statusCode: "OK" },
+    { indexDateString: "05-11-2026", value: null, statusCode: "OK" },
+    { indexDateString: "06-11-2026", value: "NaN", statusCode: "ND" },
+    { indexDateString: "07-11-2026", value: "Infinity", statusCode: "OK" },
+    { indexDateString: "08-11-2026", value: "desconocido", statusCode: "OK" },
+    { indexDateString: "09-11-2026", value: "951.25", statusCode: "ND" },
+    { indexDateString: "10-11-2026", value: "952.50", statusCode: "OK" },
+  ] } }));
+  const { getDollarSeries } = await import("../src/lib/dollar.ts");
+
+  // Esperamos únicamente los registros válidos originales, conservando fechas, valores y orden.
+  assert.deepEqual(await getDollarSeries("2026-11-02", "2026-11-10"), [
+    { indexDateString: "02-11-2026", value: "950.25", statusCode: "OK" },
+    { indexDateString: "10-11-2026", value: "952.50", statusCode: "OK" },
+  ]);
+});

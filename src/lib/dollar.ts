@@ -21,5 +21,10 @@ export async function getDollarSeries(startDate: string, endDate: string): Promi
   if (data.Codigo !== 0) {
     throw new Error("Error en la consulta al Banco Central");
   }
-  return data.Series.Obs;
+  // Una respuesta exitosa sin observaciones se representa como una lista vacía.
+  const observations: DollarObservation[] = data.Series.Obs ?? [];
+  // Los vacíos y null se descartan antes de convertir: Number podría interpretarlos como cero.
+  return observations.filter(({ statusCode, value }) =>
+    statusCode === "OK" && typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value)),
+  );
 }
