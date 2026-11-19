@@ -6,9 +6,9 @@ Como visitante, quiero consultar la evolución histórica del dólar en un dashb
 
 ## Criterios de aceptación
 
-- [ ] Dado que abro el dashboard, cuando finalice la consulta, entonces veré un gráfico del dólar observado desde el primer día del mes actual hasta hoy, expresado en pesos chilenos por dólar.
-- [ ] Dado el dashboard, cuando elija fechas inicial y final válidas y consulte, entonces veré el período solicitado y podré conocer la fecha y el valor de cada observación al pasar sobre el gráfico.
-- [ ] Dada una consulta, cuando esté cargando, el rango sea inválido, no existan datos o falle el servicio, entonces veré el estado correspondiente; las fechas sin valor válido no se mostrarán como cero.
+- [x] Dado que abro el dashboard, cuando finalice la consulta, entonces veré un gráfico del dólar observado desde el primer día del mes actual hasta hoy, expresado en pesos chilenos por dólar.
+- [x] Dado el dashboard, cuando elija fechas inicial y final válidas y consulte, entonces veré el período solicitado y podré conocer la fecha y el valor de cada observación al pasar sobre el gráfico.
+- [x] Dada una consulta, cuando esté cargando, el rango sea inválido, no existan datos o falle el servicio, entonces veré el estado correspondiente; las fechas sin valor válido no se mostrarán como cero.
 
 ## Plan
 
@@ -23,3 +23,10 @@ Como visitante, quiero consultar la evolución histórica del dólar en un dashb
 - Comparación entre períodos.
 - Zoom y desplazamiento del gráfico.
 - Otros indicadores, exportación a Excel y despliegue.
+
+## Verificación final — 17-11-2026
+
+- 13 pruebas E2E y 7 de integración aprobadas; lint y TypeScript correctos.
+- Compilación de producción completada con `npm run build`.
+- Verificación en navegador de la compilación de producción con datos reales: período inicial del 01-11-2026 al 17-11-2026, cambio al rango 02-11-2026 a 10-11-2026, unidad CLP/USD y tooltip con fecha y valor.
+- Los estados de carga, rango inválido, ausencia de datos y error del servicio, y la exclusión de valores inválidos, están cubiertos por las pruebas automatizadas.
