@@ -51,16 +51,19 @@ test("Devuelve las observaciones del rango mediante un endpoint del servidor", a
 });
 
 test("Rechaza inicio posterior al fin con HTTP 400 sin consultar al Banco Central", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-11-12T01:00:00Z") });
   const fetchMock = t.mock.method(globalThis, "fetch", async () =>
     Response.json({ Codigo: 0, Series: { Obs: [] } }),
   );
   const { GET } = await import("../src/app/api/dollar/route.ts");
-  const response = await GET(new Request("http://localhost/api/dollar?startDate=2026-11-10&endDate=2026-11-02"));
-
-  assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), {
-    error: "La fecha inicial no puede ser posterior a la fecha final",
-  });
+  // El rango invertido tiene prioridad incluso si ambas fechas también están en el futuro.
+  for (const [startDate, endDate] of [["2026-11-10", "2026-11-02"], ["2026-11-20", "2026-11-19"]]) {
+    const response = await GET(new Request(`http://localhost/api/dollar?startDate=${startDate}&endDate=${endDate}`));
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: "La fecha inicial no puede ser posterior a la fecha final",
+    });
+  }
   assert.equal(fetchMock.mock.callCount(), 0);
 });
 

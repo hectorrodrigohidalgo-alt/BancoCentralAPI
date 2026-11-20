@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { validateDateRange } from "../lib/date-range-validation";
 import { getTodayInSantiago } from "../lib/dates";
 import type { DollarObservation } from "../lib/dollar";
 import DollarChart from "./dollar-chart";
@@ -15,23 +16,30 @@ export default function DateRange() {
   // Cada fetch lo desactiva en finally, tanto si termina bien como si falla.
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const query = new URLSearchParams({
-      startDate: `${today.slice(0, 7)}-01`,
-      endDate: today,
-    });
+  // Una referencia estable permite reutilizar la consulta sin volver a disparar el efecto.
+  const queryDollar = useCallback(async (startDate: string, endDate: string) => {
+    setError("");
+    setIsLoading(true);
+    const query = new URLSearchParams({ startDate, endDate });
     // Convertimos la respuesta JSON en el estado del gráfico; null se trata como una lista vacía.
     // La consulta pasa por nuestro servidor, que mantiene privado el token del Banco Central.
     // Una respuesta HTTP fallida se convierte en error y se muestra un aviso al visitante.
-    void fetch(`/api/dollar?${query}`)
-      .then((response) => {
-        if (!response.ok) throw new Error("Consulta fallida");
-        return response.json();
-      })
-      .then((data) => setObservations(data ?? []))
-      .catch(() => setError("No fue posible consultar el dólar. Intenta nuevamente."))
-      .finally(() => setIsLoading(false));
-  }, [today]);
+    try {
+      const response = await fetch(`/api/dollar?${query}`);
+      if (!response.ok) throw new Error("Consulta fallida");
+      const data = await response.json();
+      setObservations(data ?? []);
+    } catch {
+      setError("No fue posible consultar el dólar. Intenta nuevamente.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Iniciamos la consulta de forma asíncrona; la carga inicial ya está activa.
+    void Promise.resolve().then(() => queryDollar(`${today.slice(0, 7)}-01`, today));
+  }, [queryDollar, today]);
 
   return (
     <form onSubmit={(event) => {
@@ -40,24 +48,13 @@ export default function DateRange() {
       const values = new FormData(event.currentTarget);
       const startDate = String(values.get("startDate"));
       const endDate = String(values.get("endDate"));
-      // Un rango invertido muestra el mensaje y termina aquí, antes de enviar la consulta.
-      if (startDate > endDate) {
-        setError("La fecha inicial no puede ser posterior a la fecha final");
+      // Compartimos las reglas con el endpoint y detenemos los rangos inválidos antes del fetch.
+      const validationError = validateDateRange(startDate, endDate, today);
+      if (validationError) {
+        setError(validationError);
         return;
       }
-      // Un rango válido limpia el error anterior e inicia una nueva consulta con sus fechas.
-      setError("");
-      setIsLoading(true);
-      const query = new URLSearchParams({ startDate, endDate });
-      // Capturamos el fallo también al consultar fechas elegidas, sin confundirlo con datos vacíos.
-      void fetch(`/api/dollar?${query}`)
-        .then((response) => {
-          if (!response.ok) throw new Error("Consulta fallida");
-          return response.json();
-        })
-        .then((data) => setObservations(data ?? []))
-        .catch(() => setError("No fue posible consultar el dólar. Intenta nuevamente."))
-        .finally(() => setIsLoading(false));
+      void queryDollar(startDate, endDate);
     }}>
       <label>
         Fecha inicial <input type="date" name="startDate" max={today} defaultValue={`${today.slice(0, 7)}-01`} />
