@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { validateDateRange } from "../lib/date-range-validation";
 import { getTodayInSantiago } from "../lib/dates";
 import type { DollarObservation } from "../lib/dollar";
+import { fetchDollarObservations } from "../lib/dollar-client";
 import DollarChart from "./dollar-chart";
 
 export default function DateRange() {
@@ -13,22 +14,17 @@ export default function DateRange() {
   const [observations, setObservations] = useState<DollarObservation[]>([]);
   // Empieza en true porque la primera consulta se hace al montar el componente.
   // Las consultas manuales vuelven a activarlo después de validar el rango.
-  // Cada fetch lo desactiva en finally, tanto si termina bien como si falla.
+  // Cada consulta lo desactiva en finally, tanto si termina bien como si falla.
   const [isLoading, setIsLoading] = useState(true);
 
   // Una referencia estable permite reutilizar la consulta sin volver a disparar el efecto.
   const queryDollar = useCallback(async (startDate: string, endDate: string) => {
     setError("");
     setIsLoading(true);
-    const query = new URLSearchParams({ startDate, endDate });
-    // Convertimos la respuesta JSON en el estado del gráfico; null se trata como una lista vacía.
-    // La consulta pasa por nuestro servidor, que mantiene privado el token del Banco Central.
-    // Una respuesta HTTP fallida se convierte en error y se muestra un aviso al visitante.
+    // La petición devuelve datos o un error; el componente administra los estados de la interfaz.
     try {
-      const response = await fetch(`/api/dollar?${query}`);
-      if (!response.ok) throw new Error("Consulta fallida");
-      const data = await response.json();
-      setObservations(data ?? []);
+      const data = await fetchDollarObservations(startDate, endDate);
+      setObservations(data);
     } catch {
       setError("No fue posible consultar el dólar. Intenta nuevamente.");
     } finally {
