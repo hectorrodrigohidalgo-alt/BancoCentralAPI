@@ -1,37 +1,81 @@
 import { useEffect, useRef } from "react";
 import { LineChart } from "echarts/charts";
-import { AriaComponent, GridComponent, TooltipComponent } from "echarts/components";
+import { AriaComponent, GridComponent, LegendComponent, TooltipComponent } from "echarts/components";
 import { init, use as registerCharts } from "echarts/core";
 import { SVGRenderer } from "echarts/renderers";
+import type { EChartsOption } from "echarts";
 import type { DollarObservation } from "../lib/dollar";
+import { getPeriodLabel, toElapsedDayPoints, type DollarPeriodResult } from "../lib/dollar-comparison";
 
-// Registramos los módulos necesarios para la línea, los ejes, la accesibilidad, el tooltip y SVG.
-registerCharts([LineChart, AriaComponent, GridComponent, TooltipComponent, SVGRenderer]);
+registerCharts([LineChart, AriaComponent, GridComponent, LegendComponent, TooltipComponent, SVGRenderer]);
 
-export default function DollarChart({ observations }: { observations: DollarObservation[] }) {
-  // ECharts necesita el elemento HTML donde dibujará el gráfico.
+type ChartResult =
+  | { mode: "single"; observations: DollarObservation[] }
+  | { mode: "comparison"; periods: DollarPeriodResult[] };
+
+export default function DollarChart({ result }: { result: ChartResult }) {
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    // El efecto crea una instancia al montar el componente y cada vez que cambian los datos.
     const chart = init(container.current!, undefined, { renderer: "svg" });
-    chart.setOption({
-      // ECharts genera una descripción de las observaciones para lectores de pantalla.
-      aria: { enabled: true },
-      // En la plantilla, {b} es la fecha del eje X y {c} es el valor de la observación.
-      tooltip: { trigger: "axis", formatter: '<span role="tooltip">{b}: {c} CLP/USD</span>' },
-      // Las fechas forman las categorías; los valores se convierten de texto a número.
-      xAxis: { type: "category", data: observations.map((item) => item.indexDateString) },
-      yAxis: { type: "value", name: "CLP/USD" },
-      series: [{ name: "Dólar observado (CLP/USD)", type: "line", data: observations.map((item) => Number(item.value)) }],
-    });
-    // Ajustamos el gráfico cuando cambia el tamaño de su contenedor.
+    let option: EChartsOption;
+    if (result.mode === "single") {
+      option = {
+        aria: { enabled: true },
+        tooltip: { trigger: "axis", formatter: '<span role="tooltip">{b}: {c} CLP/USD</span>' },
+        xAxis: { type: "category", data: result.observations.map((item) => item.indexDateString) },
+        yAxis: { type: "value", name: "CLP/USD" },
+        series: [{ name: "Dólar observado (CLP/USD)", type: "line", data: result.observations.map((item) => Number(item.value)) }],
+      };
+    } else {
+      const points = result.periods.map(({ period, observations }) => toElapsedDayPoints(period, observations));
+      const labels = result.periods.map(({ period }, index) => getPeriodLabel(period, index));
+      option = {
+        aria: {
+          enabled: true,
+          label: { description: `Comparación del dólar observado (CLP/USD). ${points.map((data, index) =>
+            `${labels[index]}: ${data.map(({ name, value }) => `Día ${value[0]}, ${name}: ${value[1]} CLP/USD`).join("; ") || "Sin datos"}`,
+          ).join(". ")}` },
+        },
+        legend: { top: 0, type: "scroll" },
+        grid: { top: 75, bottom: 65, left: 65, right: 30 },
+        tooltip: {
+          trigger: "axis",
+          formatter: (params) => {
+            // Usamos los puntos originales, no fechas calculadas desde la posición del cursor.
+            const tooltip = document.createElement("div");
+            tooltip.setAttribute("role", "tooltip");
+            for (const item of Array.isArray(params) ? params : [params]) {
+              const index = item.seriesIndex!;
+              const point = points[index][item.dataIndex];
+              const line = document.createElement("div");
+              line.textContent = `${labels[index]} — ${point.name}: ${point.value[1]} CLP/USD`;
+              tooltip.append(line);
+            }
+            return tooltip;
+          },
+        },
+        xAxis: {
+          type: "value", min: 0, minInterval: 1,
+          name: "Días transcurridos", nameLocation: "middle", nameGap: 35,
+          axisLabel: { formatter: "Día {value}" },
+        },
+        yAxis: { type: "value", name: "CLP/USD" },
+        series: points.map((data, index) => ({
+          name: labels[index], type: "line", data,
+          // Conservamos identidad visual incluso cuando solo un período contiene datos.
+          color: index === 0 ? "#2563eb" : "#b45309",
+          lineStyle: { type: index === 0 ? "solid" : "dashed", width: 2 },
+          symbol: index === 0 ? "circle" : "diamond", symbolSize: 8,
+        })),
+      };
+    }
+    chart.setOption(option);
     const observer = new ResizeObserver(() => chart.resize());
     observer.observe(container.current!);
     return () => {
-      // Antes de recrearlo o desmontarlo, liberamos el observador y la instancia anterior.
       observer.disconnect();
       chart.dispose();
     };
-  }, [observations]);
+  }, [result]);
   return <div ref={container} style={{ height: 360 }} />;
 }
