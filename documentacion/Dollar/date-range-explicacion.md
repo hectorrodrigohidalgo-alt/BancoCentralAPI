@@ -68,6 +68,8 @@ Cada resultado tiene `status: "fulfilled"` y `value`, o `status: "rejected"` y e
 
 Primero exige ambas fechas. Después aplica `validateDateRange` a cada rango: el inicio no puede superar al fin y ninguna fecha puede superar hoy. Un rango de un día es válido porque la regla usa `>` en lugar de `>=`. Si encuentra un error, termina antes de iniciar cualquier solicitud. En comparación agrega el número y las fechas del período afectado.
 
+Después de validar ambos rangos, la comparación exige que sean distintos: si coinciden tanto el inicio como el fin, muestra **Los períodos 1 y 2 no pueden tener el mismo rango de fechas.** y termina antes de llamar a `queryComparison`. Así conserva las fechas y el gráfico anterior, sin solicitudes ni carga. La consulta individual permite rangos de un día. La primera prueba E2E de esta regla cubre períodos idénticos de un día; quedan pendientes los de varios días, los rangos con un solo extremo compartido y la corrección posterior.
+
 Los campos mantienen `max={today}`. En comparación, `noValidate` permite que el envío llegue a nuestra validación en JavaScript incluso con campos requeridos vacíos o fechas futuras. Así mostramos un mensaje consistente que identifica el período. Esto no omite la validación: `queryForm` la realiza antes de consultar y el endpoint conserva sus propias reglas.
 
 `defaultValue` establece el valor inicial de cada campo, pero el navegador administra los cambios posteriores. No necesitamos un estado de React por fecha. `FormData` toma una fotografía de los valores al consultar; los resultados conservan ese rango aunque el usuario cambie los campos después.
@@ -90,7 +92,7 @@ Durante una consulta, el botón, el cambio de modo y los dos grupos de fechas es
 
 ```text
 Activar comparación → preparar segundo rango, sin consultar
-Comparar → FormData → validar ambos rangos
+Comparar → FormData → validar ambos rangos y comprobar que sean distintos
                           ↓
                limpiar resultado y activar carga
                           ↓

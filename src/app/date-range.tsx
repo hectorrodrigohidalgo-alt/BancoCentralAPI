@@ -76,6 +76,10 @@ export default function DateRange() {
         return;
       }
     }
+    if (compare && periods[0].startDate === periods[1].startDate && periods[0].endDate === periods[1].endDate) {
+      setError("Los períodos 1 y 2 no pueden tener el mismo rango de fechas.");
+      return;
+    }
     if (compare) void queryComparison(periods);
     else void queryDollar(periods[0].startDate, periods[0].endDate);
   }

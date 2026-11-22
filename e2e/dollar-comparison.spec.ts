@@ -149,6 +149,37 @@ test("Actualiza ambos rangos y admite períodos de un día", async ({ page }) =>
   await expect(chart.locator("svg")).toBeVisible();
 });
 
+test("Rechaza períodos idénticos de un día sin consultar y conserva fechas y gráfico", async ({ page }) => {
+  const requests: string[] = [];
+  await page.route("**/api/dollar?*", (route) => {
+    requests.push(route.request().url());
+    return route.fulfill({ json: firstObservations });
+  });
+  await openDashboard(page);
+  await selectPeriods(page);
+  await page.getByRole("button", { name: "Comparar", exact: true }).click();
+  const chart = page.getByRole("img", { name: /Comparación del dólar/ });
+  await expect(chart).toBeVisible();
+  const previousChart = await chart.getAttribute("aria-label");
+  const before = requests.length;
+  const fields = ["Fecha inicial", "Fecha final", "Inicio del período 2", "Fin del período 2"];
+  for (const label of fields) {
+    await page.getByLabel(label, { exact: true }).fill("2026-11-02");
+  }
+
+  await page.getByRole("button", { name: "Comparar", exact: true }).click();
+
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText("Los períodos 1 y 2 no pueden tener el mismo rango de fechas.");
+  await expect(page.getByRole("main").getByRole("status")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Comparar", exact: true })).toBeEnabled();
+  await expect(chart).toBeVisible();
+  await expect(chart).toHaveAttribute("aria-label", previousChart!);
+  for (const label of fields) {
+    await expect(page.getByLabel(label, { exact: true })).toHaveValue("2026-11-02");
+  }
+  expect(requests).toHaveLength(before);
+});
+
 for (const period of [1, 2]) {
   test(`Valida fechas requeridas, invertidas y futuras del período ${period} sin consultar`, async ({ page }) => {
     const requests: string[] = [];
