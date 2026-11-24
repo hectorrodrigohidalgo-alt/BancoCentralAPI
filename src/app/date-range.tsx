@@ -1,34 +1,37 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { validateDateRange } from "../lib/date-range-validation";
-import { getTodayInSantiago } from "../lib/dates";
+import { validateDateRange, validateFullMonthRange } from "../lib/date-range-validation";
+import { getPreviousMonthRange, getTodayInSantiago } from "../lib/dates";
 import type { DollarObservation } from "../lib/dollar";
+import { fetchDollarObservations } from "../lib/dollar-client";
+import { getPeriodLabel, type DollarPeriod, type DollarPeriodResult } from "../lib/dollar-comparison";
 import DollarChart from "./dollar-chart";
+
+type QueryResult =
+  | { mode: "single"; observations: DollarObservation[] }
+  | { mode: "comparison"; periods: DollarPeriodResult[] };
 
 export default function DateRange() {
   const [today] = useState(getTodayInSantiago);
-  // Conservamos el error del rango o del servicio y los datos que recibe el gráfico.
+  const previousMonth = getPreviousMonthRange(today);
+  const [startDate, setStartDate] = useState(`${today.slice(0, 7)}-01`);
+  const [endDate, setEndDate] = useState(today);
+  const [comparisonEnabled, setComparisonEnabled] = useState(false);
   const [error, setError] = useState("");
-  const [observations, setObservations] = useState<DollarObservation[]>([]);
-  // Empieza en true porque la primera consulta se hace al montar el componente.
-  // Las consultas manuales vuelven a activarlo después de validar el rango.
-  // Cada fetch lo desactiva en finally, tanto si termina bien como si falla.
+  const [result, setResult] = useState<QueryResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingPeriods, setLoadingPeriods] = useState<DollarPeriod[]>([]);
 
-  // Una referencia estable permite reutilizar la consulta sin volver a disparar el efecto.
   const queryDollar = useCallback(async (startDate: string, endDate: string) => {
     setError("");
+    // La consulta individual conserva su gráfico mientras espera, como antes.
+    setResult((current) => current?.mode === "single" ? current : null);
+    setLoadingPeriods([]);
     setIsLoading(true);
-    const query = new URLSearchParams({ startDate, endDate });
-    // Convertimos la respuesta JSON en el estado del gráfico; null se trata como una lista vacía.
-    // La consulta pasa por nuestro servidor, que mantiene privado el token del Banco Central.
-    // Una respuesta HTTP fallida se convierte en error y se muestra un aviso al visitante.
     try {
-      const response = await fetch(`/api/dollar?${query}`);
-      if (!response.ok) throw new Error("Consulta fallida");
-      const data = await response.json();
-      setObservations(data ?? []);
+      const observations = await fetchDollarObservations(startDate, endDate);
+      setResult({ mode: "single", observations });
     } catch {
       setError("No fue posible consultar el dólar. Intenta nuevamente.");
     } finally {
@@ -37,41 +40,129 @@ export default function DateRange() {
   }, []);
 
   useEffect(() => {
-    // Iniciamos la consulta de forma asíncrona; la carga inicial ya está activa.
     void Promise.resolve().then(() => queryDollar(`${today.slice(0, 7)}-01`, today));
   }, [queryDollar, today]);
 
-  return (
-    <form onSubmit={(event) => {
-      // Leemos las fechas actuales del formulario y evitamos que el envío recargue la página.
-      event.preventDefault();
-      const values = new FormData(event.currentTarget);
-      const startDate = String(values.get("startDate"));
-      const endDate = String(values.get("endDate"));
-      // Compartimos las reglas con el endpoint y detenemos los rangos inválidos antes del fetch.
-      const validationError = validateDateRange(startDate, endDate, today);
+  async function queryComparison(periods: DollarPeriod[]) {
+    setError("");
+    setResult(null);
+    setLoadingPeriods(periods);
+    setIsLoading(true);
+    // allSettled espera ambos períodos aunque uno falle; su orden coincide con el formulario.
+    const responses = await Promise.allSettled(periods.map(({ startDate, endDate }) =>
+      fetchDollarObservations(startDate, endDate),
+    ));
+    setResult({
+      mode: "comparison",
+      periods: responses.map((response, index) => ({
+        period: periods[index],
+        observations: response.status === "fulfilled" ? response.value : [],
+        failed: response.status === "rejected",
+      })),
+    });
+    setIsLoading(false);
+  }
+
+  function queryForm(form: HTMLFormElement, compare: boolean) {
+    const values = new FormData(form);
+    const periods = [{ startDate: String(values.get("startDate") ?? ""), endDate: String(values.get("endDate") ?? "") }];
+    if (compare) {
+      periods.push({ startDate: String(values.get("secondStartDate") ?? ""), endDate: String(values.get("secondEndDate") ?? "") });
+      // Cada envío de comparación retira el gráfico anterior, incluso si las fechas son inválidas.
+      setResult(null);
+    }
+    for (const [index, period] of periods.entries()) {
+      const validationError = !period.startDate || !period.endDate
+        ? "Selecciona ambas fechas"
+        : validateDateRange(period.startDate, period.endDate, today);
       if (validationError) {
-        setError(validationError);
+        setError(compare ? `${getPeriodLabel(period, index)}: ${validationError}` : validationError);
         return;
       }
-      void queryDollar(startDate, endDate);
+    }
+    if (compare) {
+      for (const [index, period] of periods.entries()) {
+        const validationError = validateFullMonthRange(period.startDate, period.endDate);
+        if (validationError) {
+          setError(`${getPeriodLabel(period, index)}: ${validationError}`);
+          return;
+        }
+      }
+      if (periods[0].startDate === periods[1].startDate && periods[0].endDate === periods[1].endDate) {
+        setError("Los períodos 1 y 2 no pueden tener el mismo rango de fechas.");
+        return;
+      }
+    }
+    if (compare) void queryComparison(periods);
+    else void queryDollar(periods[0].startDate, periods[0].endDate);
+  }
+
+  const incomplete = result?.mode === "comparison" && result.periods.some(({ failed, observations }) => failed || observations.length === 0);
+  const hasData = result?.mode === "single"
+    ? result.observations.length > 0
+    : result?.periods.some(({ observations }) => observations.length > 0);
+
+  return (
+    <form noValidate={comparisonEnabled} onSubmit={(event) => {
+      event.preventDefault();
+      if (!isLoading) queryForm(event.currentTarget, comparisonEnabled);
     }}>
       <label>
-        Fecha inicial <input type="date" name="startDate" max={today} defaultValue={`${today.slice(0, 7)}-01`} />
+        <input type="checkbox" checked={comparisonEnabled} disabled={isLoading} onChange={(event) => {
+          const enabled = event.currentTarget.checked;
+          setComparisonEnabled(enabled);
+          setError("");
+          // Activar solo prepara el formulario; al salir consultamos el primer rango actual.
+          if (enabled) {
+            setStartDate(previousMonth.startDate);
+            setEndDate(previousMonth.endDate);
+          } else {
+            setResult(null);
+            queryForm(event.currentTarget.form!, false);
+          }
+        }} /> Activar comparación
       </label>
-      <label>
-        Fecha final <input type="date" name="endDate" max={today} defaultValue={today} />
-      </label>
-      <button type="submit">Consultar</button>
-      {/* El mensaje permanece visible mientras haya una consulta marcada como pendiente. */}
-      {isLoading && <p role="status">Cargando…</p>}
+      <fieldset disabled={isLoading}>
+        <legend>Período 1</legend>
+        <label>
+          Fecha inicial <input type="date" name="startDate" max={today} required={comparisonEnabled} value={startDate} onChange={(event) => setStartDate(event.currentTarget.value)} />
+        </label>
+        <label>
+          Fecha final <input type="date" name="endDate" max={today} required={comparisonEnabled} value={endDate} onChange={(event) => setEndDate(event.currentTarget.value)} />
+        </label>
+      </fieldset>
+      {comparisonEnabled && (
+        <fieldset disabled={isLoading}>
+          <legend>Período 2</legend>
+          <label>
+            Inicio del período 2 <input type="date" name="secondStartDate" max={today} required defaultValue={`${today.slice(0, 7)}-01`} />
+          </label>
+          <label>
+            Fin del período 2 <input type="date" name="secondEndDate" max={today} required defaultValue={today} />
+          </label>
+        </fieldset>
+      )}
+      <button type="submit" disabled={isLoading}>{comparisonEnabled ? "Comparar" : "Consultar"}</button>
+      {isLoading && <p role="status">{loadingPeriods.length > 0
+        ? `Cargando ${loadingPeriods.map(getPeriodLabel).join(" y ")}…`
+        : "Cargando…"}</p>}
       {error && <p role="alert">{error}</p>}
-      {/* El mensaje aparece al finalizar la carga, si no hay error ni observaciones. */}
-      {!isLoading && !error && observations.length === 0 && (
+      {incomplete && (
+        <div role="alert">
+          <p>Comparación incompleta.</p>
+          {result.periods.map(({ period, observations, failed }, index) => (
+            (failed || observations.length === 0) && <p key={index}>
+              {getPeriodLabel(period, index)}: {failed
+                ? "No fue posible consultar el dólar. Intenta nuevamente."
+                : "Sin datos para el período seleccionado."}
+            </p>
+          ))}
+        </div>
+      )}
+      {!isLoading && !error && result?.mode === "single" && !hasData && (
         <p>Sin datos para el período seleccionado.</p>
       )}
-      {/* Solo dibujamos si hay observaciones; esta prop entrega los datos nuevos al gráfico. */}
-      {observations.length > 0 && <DollarChart observations={observations} />}
+      {hasData && result && <DollarChart result={result} />}
     </form>
   );
 }

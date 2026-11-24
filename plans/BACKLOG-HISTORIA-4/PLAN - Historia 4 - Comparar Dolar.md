@@ -4,17 +4,18 @@
 
 Como visitante, quiero comparar el dólar entre dos períodos históricos para entender cómo cambió su comportamiento.
 
-- [ ] Dado el dashboard, cuando active la comparación, seleccione dos rangos válidos y consulte, entonces veré dos líneas superpuestas, identificadas por período, alineadas por días transcurridos y expresadas en CLP/USD; al pasar sobre ellas podré conocer sus fechas reales y valores.
-- [ ] Dada una comparación, cuando cambie uno o ambos períodos y consulte nuevamente, entonces veré las curvas correspondientes a la nueva selección.
-- [ ] Dada una consulta, cuando exista carga, un rango inválido, ausencia de datos o error del servicio, entonces veré el estado correspondiente y el período afectado, sin presentar valores ausentes como cero.
+- [x] Dado el dashboard, cuando active la comparación, seleccione dos rangos válidos y consulte, entonces veré dos líneas superpuestas, identificadas por período, alineadas por días transcurridos y expresadas en CLP/USD; al pasar sobre ellas podré conocer sus fechas reales y valores.
+- [x] Dada una comparación, cuando cambie uno o ambos períodos y consulte nuevamente, entonces veré las curvas correspondientes a la nueva selección.
+- [x] Dada una consulta, cuando exista carga, un rango inválido, ausencia de datos o error del servicio, entonces veré el estado correspondiente y el período afectado, sin presentar valores ausentes como cero.
 
 ## Decisiones acordadas y comportamiento
 
 - El dashboard conserva su consulta inicial del primer día del mes hasta hoy en Santiago.
 - Una opción **Activar comparación** muestra el segundo rango. Sus fechas iniciales corresponden al primer y último día del mes calendario anterior.
 - Activar la opción prepara el formulario; la comparación se consulta al pulsar **Comparar**. Al desactivarla, vuelve la consulta individual existente.
+- Al comparar, ambos rangos deben ser meses calendario completos y distintos. Primero se validan las fechas requeridas, el orden y las fechas futuras de ambos períodos; luego los meses completos y finalmente la igualdad. Todo error de comparación retira cualquier gráfico anterior, conserva las fechas y no inicia carga ni solicitudes. La consulta individual admite rangos libres, incluidos los de un día.
 - El eje horizontal representa días calendario desde el inicio de cada rango: día 0, día 1, etc. El eje vertical conserva los precios reales en CLP/USD.
-- Los períodos pueden tener distinta duración. Cada curva termina con sus propias observaciones; los fines de semana y feriados mantienen su distancia temporal. Se unen las observaciones disponibles sin generar cotizaciones intermedias.
+- Los meses pueden tener distinta duración (28, 29, 30 o 31 días). Cada curva termina con sus propias observaciones; los fines de semana y feriados mantienen su distancia temporal. Se unen las observaciones disponibles sin generar cotizaciones intermedias.
 - Las curvas se distinguen por color y estilo de línea. La leyenda identifica los períodos y el detalle muestra período, fecha real y valor.
 
 ## Plan de implementación
@@ -27,10 +28,20 @@ Como visitante, quiero comparar el dólar entre dos períodos históricos para e
 
 ## Verificación y límites
 
-- [ ] Probar alineación con fechas iniciales distintas, días sin observaciones, cambio de mes/año, períodos de distinta duración y rangos de un día.
-- [ ] Comprobar fechas automáticas del mes anterior, incluyendo enero y febrero de año bisiesto.
-- [ ] Verificar identificación de curvas, valores reales, detalles al pasar sobre ellas y actualización de ambos rangos.
-- [ ] Cubrir rangos invertidos, fechas futuras, carga, respuestas vacías o `null`, fallo de uno o ambos períodos y regreso a consulta individual.
-- [ ] Ejecutar integración, E2E, lint y TypeScript.
+- [x] Probar alineación con fechas iniciales distintas, días sin observaciones, cambio de mes/año y períodos de distinta duración. Los rangos de un día se conservan en la consulta individual y se rechazan en comparación.
+- [x] Comprobar fechas automáticas del mes anterior, incluyendo enero y febrero de año bisiesto.
+- [x] Verificar identificación de curvas, valores reales, detalles al pasar sobre ellas y actualización de ambos rangos.
+- [x] Cubrir rangos invertidos, fechas futuras, carga, respuestas vacías o `null`, fallo de uno o ambos períodos y regreso a consulta individual.
+- [x] Ejecutar integración, E2E, lint y TypeScript.
 
 Quedan fuera otros indicadores, normalización a base 100, nuevas métricas, exportación y despliegue. No se agregan dependencias ni almacenamiento.
+
+## Implementación y evidencia
+
+- Formulario y estados: `src/app/date-range.tsx`.
+- Curvas, leyenda y detalle: `src/app/dollar-chart.tsx`.
+- Mes anterior: `src/lib/dates.ts`; alineación UTC: `src/lib/dollar-comparison.ts`.
+- Verificación al 22-11-2026: `npm run test:integration`, 13 pruebas; `npm run test:e2e -- --workers=2`, 38 pruebas, incluyendo las de consulta individual y validación de meses completos.
+- `npm run lint` y `npm run typecheck` sin errores.
+- Las pruebas usan respuestas simuladas del servicio; no requieren credenciales ni disponibilidad del Banco Central.
+- Validación de meses completos y estados del formulario: `documentacion/Dollar/date-range-explicacion.md`. Cada activación prepara el mes anterior como período 1 y el mes actual hasta hoy como período 2, reemplazando selecciones previas sin consultar.
