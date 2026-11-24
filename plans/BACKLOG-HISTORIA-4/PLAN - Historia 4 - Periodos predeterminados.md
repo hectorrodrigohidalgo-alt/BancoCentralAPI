@@ -16,6 +16,8 @@ Por ejemplo, al 22 de noviembre de 2026:
 
 Activar la opción solo prepara el formulario. Las solicitudes comienzan al pulsar **Comparar**.
 
+Ambos rangos deben cumplir la [validación de meses completos](<PLAN - Historia 4 - Validar meses completos.md>) antes de consultar. El mes actual hasta hoy será inválido mientras no sea su último día: se muestra el aviso del período afectado y se retira cualquier gráfico anterior, sin solicitudes. El cambio de orden descrito en este documento sigue pendiente; actualmente el período 1 contiene el mes actual y el período 2 el mes anterior.
+
 ## Implementación
 
 - En `src/app/date-range.tsx`, controlar las fechas del primer período mediante estado para poder cambiarlas al activar la comparación.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { validateDateRange } from "../lib/date-range-validation";
+import { validateDateRange, validateFullMonthRange } from "../lib/date-range-validation";
 import { getPreviousMonthRange, getTodayInSantiago } from "../lib/dates";
 import type { DollarObservation } from "../lib/dollar";
 import { fetchDollarObservations } from "../lib/dollar-client";
@@ -66,6 +66,8 @@ export default function DateRange() {
     const periods = [{ startDate: String(values.get("startDate") ?? ""), endDate: String(values.get("endDate") ?? "") }];
     if (compare) {
       periods.push({ startDate: String(values.get("secondStartDate") ?? ""), endDate: String(values.get("secondEndDate") ?? "") });
+      // Cada envío de comparación retira el gráfico anterior, incluso si las fechas son inválidas.
+      setResult(null);
     }
     for (const [index, period] of periods.entries()) {
       const validationError = !period.startDate || !period.endDate
@@ -76,9 +78,18 @@ export default function DateRange() {
         return;
       }
     }
-    if (compare && periods[0].startDate === periods[1].startDate && periods[0].endDate === periods[1].endDate) {
-      setError("Los períodos 1 y 2 no pueden tener el mismo rango de fechas.");
-      return;
+    if (compare) {
+      for (const [index, period] of periods.entries()) {
+        const validationError = validateFullMonthRange(period.startDate, period.endDate);
+        if (validationError) {
+          setError(`${getPeriodLabel(period, index)}: ${validationError}`);
+          return;
+        }
+      }
+      if (periods[0].startDate === periods[1].startDate && periods[0].endDate === periods[1].endDate) {
+        setError("Los períodos 1 y 2 no pueden tener el mismo rango de fechas.");
+        return;
+      }
     }
     if (compare) void queryComparison(periods);
     else void queryDollar(periods[0].startDate, periods[0].endDate);
