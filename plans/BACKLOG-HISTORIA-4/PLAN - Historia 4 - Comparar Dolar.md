@@ -44,4 +44,4 @@ Quedan fuera otros indicadores, normalización a base 100, nuevas métricas, exp
 - Verificación al 22-11-2026: `npm run test:integration`, 13 pruebas; `npm run test:e2e -- --workers=2`, 38 pruebas, incluyendo las de consulta individual y validación de meses completos.
 - `npm run lint` y `npm run typecheck` sin errores.
 - Las pruebas usan respuestas simuladas del servicio; no requieren credenciales ni disponibilidad del Banco Central.
-- Validación de meses completos y estados del formulario: `documentacion/Dollar/date-range-explicacion.md`. El cambio de orden de los valores predeterminados sigue pendiente en su plan específico.
+- Validación de meses completos y estados del formulario: `documentacion/Dollar/date-range-explicacion.md`. Cada activación prepara el mes anterior como período 1 y el mes actual hasta hoy como período 2, reemplazando selecciones previas sin consultar.

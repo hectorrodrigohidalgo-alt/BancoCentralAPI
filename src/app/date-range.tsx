@@ -15,6 +15,8 @@ type QueryResult =
 export default function DateRange() {
   const [today] = useState(getTodayInSantiago);
   const previousMonth = getPreviousMonthRange(today);
+  const [startDate, setStartDate] = useState(`${today.slice(0, 7)}-01`);
+  const [endDate, setEndDate] = useState(today);
   const [comparisonEnabled, setComparisonEnabled] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<QueryResult | null>(null);
@@ -111,7 +113,10 @@ export default function DateRange() {
           setComparisonEnabled(enabled);
           setError("");
           // Activar solo prepara el formulario; al salir consultamos el primer rango actual.
-          if (!enabled) {
+          if (enabled) {
+            setStartDate(previousMonth.startDate);
+            setEndDate(previousMonth.endDate);
+          } else {
             setResult(null);
             queryForm(event.currentTarget.form!, false);
           }
@@ -120,20 +125,20 @@ export default function DateRange() {
       <fieldset disabled={isLoading}>
         <legend>Período 1</legend>
         <label>
-          Fecha inicial <input type="date" name="startDate" max={today} required={comparisonEnabled} defaultValue={`${today.slice(0, 7)}-01`} />
+          Fecha inicial <input type="date" name="startDate" max={today} required={comparisonEnabled} value={startDate} onChange={(event) => setStartDate(event.currentTarget.value)} />
         </label>
         <label>
-          Fecha final <input type="date" name="endDate" max={today} required={comparisonEnabled} defaultValue={today} />
+          Fecha final <input type="date" name="endDate" max={today} required={comparisonEnabled} value={endDate} onChange={(event) => setEndDate(event.currentTarget.value)} />
         </label>
       </fieldset>
       {comparisonEnabled && (
         <fieldset disabled={isLoading}>
           <legend>Período 2</legend>
           <label>
-            Inicio del período 2 <input type="date" name="secondStartDate" max={today} required defaultValue={previousMonth.startDate} />
+            Inicio del período 2 <input type="date" name="secondStartDate" max={today} required defaultValue={`${today.slice(0, 7)}-01`} />
           </label>
           <label>
-            Fin del período 2 <input type="date" name="secondEndDate" max={today} required defaultValue={previousMonth.endDate} />
+            Fin del período 2 <input type="date" name="secondEndDate" max={today} required defaultValue={today} />
           </label>
         </fieldset>
       )}

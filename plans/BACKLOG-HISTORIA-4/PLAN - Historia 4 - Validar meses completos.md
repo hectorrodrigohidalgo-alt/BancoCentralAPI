@@ -9,7 +9,7 @@ Al pulsar **Comparar**, ambos períodos deben abarcar exactamente un mes calenda
 - Inválido: `15-06-2026` a `14-07-2026`.
 - Inválido: un rango que abarque varios meses.
 
-La regla también se aplica al mes actual. Los valores predeterminados solo preparan el formulario: el período que contiene el mes actual queda inválido mientras esté incompleto; el usuario deberá seleccionar un mes completo ya transcurrido. En el código actual ese rango corresponde al período 1; invertir el orden corresponde al plan pendiente de períodos predeterminados.
+La regla también se aplica al mes actual. Los valores predeterminados solo preparan el formulario: el período que contiene el mes actual queda inválido mientras esté incompleto; el usuario deberá seleccionar un mes completo ya transcurrido. Tras implementar los períodos predeterminados, ese rango corresponde al período 2.
 
 ## Implementación y mensajes
 

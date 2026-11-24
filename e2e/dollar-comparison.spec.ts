@@ -24,13 +24,13 @@ async function selectPeriods(page: Page) {
   await page.getByLabel("Fin del período 2").fill("2026-10-31");
 }
 
-for (const [now, start, end] of [
-  ["2026-11-11T15:00:00Z", "2026-10-01", "2026-10-31"],
-  ["2026-01-01T15:00:00Z", "2025-12-01", "2025-12-31"],
-  ["2024-03-01T15:00:00Z", "2024-02-01", "2024-02-29"],
-  ["2025-03-01T15:00:00Z", "2025-02-01", "2025-02-28"],
+for (const [now, start, end, today] of [
+  ["2026-11-11T15:00:00Z", "2026-10-01", "2026-10-31", "2026-11-11"],
+  ["2026-01-01T15:00:00Z", "2025-12-01", "2025-12-31", "2026-01-01"],
+  ["2024-03-01T15:00:00Z", "2024-02-01", "2024-02-29", "2024-03-01"],
+  ["2025-03-01T15:00:00Z", "2025-02-01", "2025-02-28", "2025-03-01"],
   // En UTC ya es noviembre, pero en Santiago todavía es octubre.
-  ["2026-11-01T01:00:00Z", "2026-09-01", "2026-09-30"],
+  ["2026-11-01T01:00:00Z", "2026-09-01", "2026-09-30", "2026-10-31"],
 ]) {
   test(`Prepara el mes anterior (${start}) sin consultar al activar`, async ({ page }) => {
     const requests: string[] = [];
@@ -41,14 +41,44 @@ for (const [now, start, end] of [
     await page.clock.setFixedTime(new Date(now));
     await page.goto("/");
     await expect(page.getByLabel("Activar comparación")).toBeEnabled();
+    await expect(page.getByLabel("Fecha inicial", { exact: true })).toHaveValue(`${today.slice(0, 7)}-01`);
+    await expect(page.getByLabel("Fecha final", { exact: true })).toHaveValue(today);
+    expect(requests.length).toBeGreaterThan(0);
+    for (const url of requests) {
+      expect(Object.fromEntries(new URL(url).searchParams)).toEqual({ startDate: `${today.slice(0, 7)}-01`, endDate: today });
+    }
     const before = requests.length;
     await page.getByLabel("Activar comparación").check();
-    await expect(page.getByLabel("Inicio del período 2")).toHaveValue(start);
-    await expect(page.getByLabel("Fin del período 2")).toHaveValue(end);
+    await expect(page.getByLabel("Fecha inicial", { exact: true })).toHaveValue(start);
+    await expect(page.getByLabel("Fecha final", { exact: true })).toHaveValue(end);
+    await expect(page.getByLabel("Inicio del período 2")).toHaveValue(`${today.slice(0, 7)}-01`);
+    await expect(page.getByLabel("Fin del período 2")).toHaveValue(today);
     await expect(page.getByRole("button", { name: "Comparar", exact: true })).toBeEnabled();
     expect(requests).toHaveLength(before);
   });
 }
+
+test("Restablece ambos períodos al reactivar y consulta el primer rango al salir", async ({ page }) => {
+  const requests: URL[] = [];
+  await page.route("**/api/dollar?*", (route) => {
+    requests.push(new URL(route.request().url()));
+    return route.fulfill({ json: [] });
+  });
+  await openDashboard(page);
+  await selectPeriods(page);
+  await page.getByLabel("Activar comparación").uncheck();
+  await expect(page.getByRole("button", { name: "Consultar", exact: true })).toBeEnabled();
+  expect(Object.fromEntries(requests.at(-1)!.searchParams)).toEqual({ startDate: "2026-09-01", endDate: "2026-09-30" });
+  await expect(page.getByLabel("Fecha inicial", { exact: true })).toHaveValue("2026-09-01");
+  await expect(page.getByLabel("Fecha final", { exact: true })).toHaveValue("2026-09-30");
+  const before = requests.length;
+  await page.getByLabel("Activar comparación").check();
+  await expect(page.getByLabel("Fecha inicial", { exact: true })).toHaveValue("2026-10-01");
+  await expect(page.getByLabel("Fecha final", { exact: true })).toHaveValue("2026-10-31");
+  await expect(page.getByLabel("Inicio del período 2")).toHaveValue("2026-11-01");
+  await expect(page.getByLabel("Fin del período 2")).toHaveValue("2026-11-11");
+  expect(requests).toHaveLength(before);
+});
 
 test("Superpone curvas por días transcurridos con leyenda, estilos y fechas reales en el tooltip", async ({ page }) => {
   const requests: URL[] = [];
@@ -280,7 +310,7 @@ test("Rechaza los valores predeterminados a mitad de mes y retira el gráfico in
   const before = requests.length;
   await page.getByLabel("Activar comparación").check();
   await page.getByRole("button", { name: "Comparar", exact: true }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("Período 1 (2026-11-01 a 2026-11-11): Selecciona un mes calendario completo");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("Período 2 (2026-11-01 a 2026-11-11): Selecciona un mes calendario completo");
   await expect(page.getByRole("main").getByRole("img")).toHaveCount(0);
   await expect(page.getByRole("main").getByRole("status")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Comparar", exact: true })).toBeEnabled();

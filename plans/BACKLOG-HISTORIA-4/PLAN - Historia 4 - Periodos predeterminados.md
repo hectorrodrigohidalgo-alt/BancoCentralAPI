@@ -16,7 +16,7 @@ Por ejemplo, al 22 de noviembre de 2026:
 
 Activar la opción solo prepara el formulario. Las solicitudes comienzan al pulsar **Comparar**.
 
-Ambos rangos deben cumplir la [validación de meses completos](<PLAN - Historia 4 - Validar meses completos.md>) antes de consultar. El mes actual hasta hoy será inválido mientras no sea su último día: se muestra el aviso del período afectado y se retira cualquier gráfico anterior, sin solicitudes. El cambio de orden descrito en este documento sigue pendiente; actualmente el período 1 contiene el mes actual y el período 2 el mes anterior.
+Ambos rangos deben cumplir la [validación de meses completos](<PLAN - Historia 4 - Validar meses completos.md>) antes de consultar. El mes actual hasta hoy será inválido mientras no sea su último día: se muestra el aviso del período 2 y se retira cualquier gráfico anterior, sin solicitudes.
 
 ## Implementación
 
@@ -29,11 +29,19 @@ Ambos rangos deben cumplir la [validación de meses completos](<PLAN - Historia 
 
 ## Verificación
 
-- [ ] Comprobar los valores iniciales y que activar la opción no genere solicitudes.
-- [ ] Cubrir enero, febrero bisiesto y diferencias entre la fecha UTC y Santiago.
-- [ ] Verificar la reactivación después de editar ambos rangos.
-- [ ] Conservar las pruebas de comparación, rangos idénticos y consulta individual.
-- [ ] Ejecutar E2E, lint y TypeScript.
+- [x] Comprobar los valores iniciales y que activar la opción no genere solicitudes.
+- [x] Cubrir enero, febrero bisiesto y diferencias entre la fecha UTC y Santiago.
+- [x] Verificar la reactivación después de editar ambos rangos.
+- [x] Conservar las pruebas de comparación, rangos idénticos y consulta individual.
+- [x] Ejecutar E2E, lint y TypeScript.
+
+## Primera iteración — 23-11-2026
+
+El primer período usa fechas controladas mediante estado y se restablece al mes anterior en cada activación. El segundo se monta con el mes actual hasta hoy en Santiago. Activar no consulta; desactivar consulta el primer rango editado. Se conserva la consulta individual inicial y las validaciones existentes.
+
+Se ampliaron las pruebas de valores iniciales para ambos períodos, enero, febrero bisiesto y cambio de fecha entre UTC y Santiago. Una nueva prueba verifica la reactivación después de editar ambos rangos y la consulta al salir. El rechazo del mes actual incompleto identifica ahora el período 2.
+
+Verificación: 39 pruebas E2E aprobadas; lint y TypeScript sin errores.
 
 ## Documentación
 

@@ -1,6 +1,8 @@
 # Validación del formulario del dólar
 
-`src/app/date-range.tsx` administra la consulta individual y la comparación. Activar la comparación muestra el segundo rango sin consultar. Actualmente el período 1 conserva sus fechas y el segundo se inicia con el mes anterior completo. El cambio de orden de los valores predeterminados está pendiente en su propio plan.
+`src/app/date-range.tsx` administra la consulta individual y la comparación. Cada activación prepara el período 1 con el mes anterior completo y el período 2 con el mes actual hasta hoy en Santiago, sin consultar. Las fechas del primer período se controlan mediante estado; el segundo se vuelve a montar con sus valores predeterminados. Así, reactivar reemplaza las selecciones anteriores de ambos rangos.
+
+La consulta inicial sigue usando el mes actual hasta hoy. Al desactivar la comparación se consulta el primer rango seleccionado y se conservan sus fechas. Mientras el mes actual esté incompleto, pulsar Comparar con los valores predeterminados muestra el aviso del período 2.
 
 ## Qué ocurre al pulsar Comparar
 
