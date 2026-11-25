@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fetchDollarObservations } from "../src/lib/dollar-client.ts";
+import { fetchIndicatorObservations } from "../src/lib/indicator-client.ts";
 
 test("Conserva los resultados de llamadas independientes y propaga el fallo de cada petición", async (t) => {
   const observations = [{ indexDateString: "02-11-2026", value: "950.25", statusCode: "OK" }];
@@ -14,9 +14,9 @@ test("Conserva los resultados de llamadas independientes y propaga el fallo de c
   });
 
   // La primera petición queda pendiente mientras terminan la fallida y la vacía.
-  const first = fetchDollarObservations("2026-11-02", "2026-11-02");
-  const failed = fetchDollarObservations("2026-11-03", "2026-11-03");
-  const empty = fetchDollarObservations("2026-11-04", "2026-11-04");
+  const first = fetchIndicatorObservations("2026-11-02", "2026-11-02");
+  const failed = fetchIndicatorObservations("2026-11-03", "2026-11-03");
+  const empty = fetchIndicatorObservations("2026-11-04", "2026-11-04");
   await assert.rejects(failed, /Consulta fallida/);
   assert.deepEqual(await empty, []);
   release(Response.json(observations));

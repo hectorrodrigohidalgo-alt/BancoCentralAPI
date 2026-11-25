@@ -1,6 +1,6 @@
-import { getDollarSeries } from "../../../lib/dollar.ts";
-import { getTodayInSantiago } from "../../../lib/dates.ts";
-import { validateDateRange } from "../../../lib/date-range-validation.ts";
+import { getDollarSeries } from "../lib/dollar.ts";
+import { getTodayInSantiago } from "../lib/dates.ts";
+import { validateDateRange } from "../lib/date-range-validation.ts";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

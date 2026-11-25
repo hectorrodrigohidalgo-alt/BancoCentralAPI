@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { GET as getIndicator } from "../src/app/api/[indicator]/route.ts";
+
+function GET(request) {
+  return getIndicator(request, { params: Promise.resolve({ indicator: "dollar" }) });
+}
 
 test("Consulta la serie del dólar para el rango solicitado desde el servidor", async (t) => {
   const originalToken = process.env.BCCH_API_TOKEN;
@@ -38,7 +43,6 @@ test("Devuelve las observaciones del rango mediante un endpoint del servidor", a
   const fetchMock = t.mock.method(globalThis, "fetch", async () =>
     Response.json({ Codigo: 0, Series: { Obs: observations } }),
   );
-  const { GET } = await import("../src/app/api/dollar/route.ts");
   const response = await GET(new Request("http://localhost/api/dollar?startDate=2026-11-02&endDate=2026-11-10"));
 
   assert.equal(response.status, 200);
@@ -55,7 +59,6 @@ test("Rechaza inicio posterior al fin con HTTP 400 sin consultar al Banco Centra
   const fetchMock = t.mock.method(globalThis, "fetch", async () =>
     Response.json({ Codigo: 0, Series: { Obs: [] } }),
   );
-  const { GET } = await import("../src/app/api/dollar/route.ts");
   // El rango invertido tiene prioridad incluso si ambas fechas también están en el futuro.
   for (const [startDate, endDate] of [["2026-11-10", "2026-11-02"], ["2026-11-20", "2026-11-19"]]) {
     const response = await GET(new Request(`http://localhost/api/dollar?startDate=${startDate}&endDate=${endDate}`));
@@ -72,7 +75,6 @@ test("Rechaza fechas futuras desde el endpoint usando America/Santiago", async (
   const fetchMock = t.mock.method(globalThis, "fetch", async () =>
     Response.json({ Codigo: 0, Series: { Obs: [] } }),
   );
-  const { GET } = await import("../src/app/api/dollar/route.ts");
 
   for (const startDate of ["2026-11-11", "2026-11-12"]) {
     const response = await GET(new Request(
@@ -91,7 +93,6 @@ test("Permite consultar un solo día desde el endpoint", async (t) => {
   const fetchMock = t.mock.method(globalThis, "fetch", async () =>
     Response.json({ Codigo: 0, Series: { Obs: observations } }),
   );
-  const { GET } = await import("../src/app/api/dollar/route.ts");
   const response = await GET(new Request("http://localhost/api/dollar?startDate=2026-11-11&endDate=2026-11-11"));
 
   assert.equal(response.status, 200);
@@ -108,7 +109,6 @@ test("Devuelve HTTP 502 ante un error del Banco Central recibido con HTTP 200", 
   const fetchMock = t.mock.method(globalThis, "fetch", async () => Response.json({
     Codigo: code, Descripcion: "Detalle interno del proveedor", Series: { Obs: null },
   }));
-  const { GET } = await import("../src/app/api/dollar/route.ts");
 
   // La misma regla debe cubrir un código conocido y otro desconocido, sin reenviar detalles internos.
   for (const errorCode of [-5, 12345]) {

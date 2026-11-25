@@ -17,7 +17,10 @@ export async function getUfSeries(startDate: string, endDate: string): Promise<U
   }).toString();
   const response = await fetch(url);
   const data = await response.json();
-  const observations: UfObservation[] = data.Series.Obs;
+  if (!response.ok || data.Codigo !== 0) {
+    throw new Error("Error en la consulta al Banco Central");
+  }
+  const observations: UfObservation[] = data.Series.Obs ?? [];
   return observations.filter(({ statusCode, value }) =>
     statusCode === "OK" && typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value)),
   );

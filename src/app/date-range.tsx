@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { validateDateRange, validateFullMonthRange } from "../lib/date-range-validation";
 import { getPreviousMonthRange, getTodayInSantiago } from "../lib/dates";
 import type { DollarObservation } from "../lib/dollar";
-import { fetchDollarObservations } from "../lib/dollar-client";
+import { fetchIndicatorObservations } from "../lib/indicator-client";
 import { getPeriodLabel, type DollarPeriod, type DollarPeriodResult } from "../lib/dollar-comparison";
 import DollarChart from "./dollar-chart";
 
@@ -13,6 +13,7 @@ type QueryResult =
   | { mode: "comparison"; periods: DollarPeriodResult[] };
 
 export default function DateRange() {
+  const [indicator, setIndicator] = useState<"dollar" | "uf">("dollar");
   const [today] = useState(getTodayInSantiago);
   const previousMonth = getPreviousMonthRange(today);
   const [startDate, setStartDate] = useState(`${today.slice(0, 7)}-01`);
@@ -23,14 +24,14 @@ export default function DateRange() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingPeriods, setLoadingPeriods] = useState<DollarPeriod[]>([]);
 
-  const queryDollar = useCallback(async (startDate: string, endDate: string) => {
+  const queryIndicator = useCallback(async (startDate: string, endDate: string, indicator: "dollar" | "uf" = "dollar") => {
     setError("");
     // La consulta individual conserva su gráfico mientras espera, como antes.
     setResult((current) => current?.mode === "single" ? current : null);
     setLoadingPeriods([]);
     setIsLoading(true);
     try {
-      const observations = await fetchDollarObservations(startDate, endDate);
+      const observations = await fetchIndicatorObservations(startDate, endDate, indicator);
       setResult({ mode: "single", observations });
     } catch {
       setError("No fue posible consultar el dólar. Intenta nuevamente.");
@@ -40,8 +41,8 @@ export default function DateRange() {
   }, []);
 
   useEffect(() => {
-    void Promise.resolve().then(() => queryDollar(`${today.slice(0, 7)}-01`, today));
-  }, [queryDollar, today]);
+    void Promise.resolve().then(() => queryIndicator(`${today.slice(0, 7)}-01`, today));
+  }, [queryIndicator, today]);
 
   async function queryComparison(periods: DollarPeriod[]) {
     setError("");
@@ -50,7 +51,7 @@ export default function DateRange() {
     setIsLoading(true);
     // allSettled espera ambos períodos aunque uno falle; su orden coincide con el formulario.
     const responses = await Promise.allSettled(periods.map(({ startDate, endDate }) =>
-      fetchDollarObservations(startDate, endDate),
+      fetchIndicatorObservations(startDate, endDate, indicator),
     ));
     setResult({
       mode: "comparison",
@@ -94,7 +95,7 @@ export default function DateRange() {
       }
     }
     if (compare) void queryComparison(periods);
-    else void queryDollar(periods[0].startDate, periods[0].endDate);
+    else void queryIndicator(periods[0].startDate, periods[0].endDate, indicator);
   }
 
   const incomplete = result?.mode === "comparison" && result.periods.some(({ failed, observations }) => failed || observations.length === 0);
@@ -107,6 +108,14 @@ export default function DateRange() {
       event.preventDefault();
       if (!isLoading) queryForm(event.currentTarget, comparisonEnabled);
     }}>
+      <label htmlFor="indicator">Indicador</label>
+      <select id="indicator" value={indicator} disabled={isLoading} onChange={(event) => {
+        setIndicator(event.currentTarget.value === "uf" ? "uf" : "dollar");
+        setResult(null);
+      }}>
+        <option value="dollar">Dólar observado</option>
+        <option value="uf">UF</option>
+      </select>
       <label>
         <input type="checkbox" checked={comparisonEnabled} disabled={isLoading} onChange={(event) => {
           const enabled = event.currentTarget.checked;
@@ -162,7 +171,7 @@ export default function DateRange() {
       {!isLoading && !error && result?.mode === "single" && !hasData && (
         <p>Sin datos para el período seleccionado.</p>
       )}
-      {hasData && result && <DollarChart result={result} />}
+      {hasData && result && (indicator === "dollar" || result.mode === "single") && <DollarChart result={result} indicator={indicator} />}
     </form>
   );
 }

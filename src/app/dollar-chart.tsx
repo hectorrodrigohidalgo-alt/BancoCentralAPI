@@ -13,18 +13,20 @@ type ChartResult =
   | { mode: "single"; observations: DollarObservation[] }
   | { mode: "comparison"; periods: DollarPeriodResult[] };
 
-export default function DollarChart({ result }: { result: ChartResult }) {
+export default function DollarChart({ result, indicator }: { result: ChartResult; indicator: "dollar" | "uf" }) {
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const chart = init(container.current!, undefined, { renderer: "svg" });
     let option: EChartsOption;
     if (result.mode === "single") {
+      const unit = indicator === "uf" ? "CLP/UF" : "CLP/USD";
+      const label = indicator === "uf" ? "UF" : "Dólar observado";
       option = {
         aria: { enabled: true },
-        tooltip: { trigger: "axis", formatter: '<span role="tooltip">{b}: {c} CLP/USD</span>' },
+        tooltip: { trigger: "axis", formatter: `<span role="tooltip">{b}: {c} ${unit}</span>` },
         xAxis: { type: "category", data: result.observations.map((item) => item.indexDateString) },
-        yAxis: { type: "value", name: "CLP/USD" },
-        series: [{ name: "Dólar observado (CLP/USD)", type: "line", data: result.observations.map((item) => Number(item.value)) }],
+        yAxis: { type: "value", name: unit },
+        series: [{ name: `${label} (${unit})`, type: "line", data: result.observations.map((item) => Number(item.value)) }],
       };
     } else {
       const points = result.periods.map(({ period, observations }) => toElapsedDayPoints(period, observations));
@@ -76,6 +78,6 @@ export default function DollarChart({ result }: { result: ChartResult }) {
       observer.disconnect();
       chart.dispose();
     };
-  }, [result]);
+  }, [result, indicator]);
   return <div ref={container} style={{ height: 360 }} />;
 }
