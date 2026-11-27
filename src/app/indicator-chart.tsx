@@ -13,13 +13,13 @@ type ChartResult =
   | { mode: "single"; observations: DollarObservation[] }
   | { mode: "comparison"; periods: DollarPeriodResult[] };
 
-export default function DollarChart({ result, indicator }: { result: ChartResult; indicator: "dollar" | "uf" }) {
+export default function IndicatorChart({ result, indicator }: { result: ChartResult; indicator: "dollar" | "uf" }) {
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const chart = init(container.current!, undefined, { renderer: "svg" });
+    const unit = indicator === "uf" ? "CLP/UF" : "CLP/USD";
     let option: EChartsOption;
     if (result.mode === "single") {
-      const unit = indicator === "uf" ? "CLP/UF" : "CLP/USD";
       const label = indicator === "uf" ? "UF" : "Dólar observado";
       option = {
         aria: { enabled: true },
@@ -34,8 +34,8 @@ export default function DollarChart({ result, indicator }: { result: ChartResult
       option = {
         aria: {
           enabled: true,
-          label: { description: `Comparación del dólar observado (CLP/USD). ${points.map((data, index) =>
-            `${labels[index]}: ${data.map(({ name, value }) => `Día ${value[0]}, ${name}: ${value[1]} CLP/USD`).join("; ") || "Sin datos"}`,
+          label: { description: `Comparación ${indicator === "uf" ? "de la UF" : "del dólar observado"} (${unit}). ${points.map((data, index) =>
+            `${labels[index]}: ${data.map(({ name, value }) => `Día ${value[0]}, ${name}: ${value[1]} ${unit}`).join("; ") || "Sin datos"}`,
           ).join(". ")}` },
         },
         legend: { top: 0, type: "scroll" },
@@ -50,7 +50,7 @@ export default function DollarChart({ result, indicator }: { result: ChartResult
               const index = item.seriesIndex!;
               const point = points[index][item.dataIndex];
               const line = document.createElement("div");
-              line.textContent = `${labels[index]} — ${point.name}: ${point.value[1]} CLP/USD`;
+              line.textContent = `${labels[index]} — ${point.name}: ${point.value[1]} ${unit}`;
               tooltip.append(line);
             }
             return tooltip;
@@ -61,7 +61,7 @@ export default function DollarChart({ result, indicator }: { result: ChartResult
           name: "Días transcurridos", nameLocation: "middle", nameGap: 35,
           axisLabel: { formatter: "Día {value}" },
         },
-        yAxis: { type: "value", name: "CLP/USD" },
+        yAxis: { type: "value", name: unit },
         series: points.map((data, index) => ({
           name: labels[index], type: "line", data,
           // Conservamos identidad visual incluso cuando solo un período contiene datos.

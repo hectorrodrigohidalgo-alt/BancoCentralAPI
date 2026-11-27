@@ -8,9 +8,19 @@ Fecha de cierre: 27-11-2026.
 
 La visualización y comparación de UF por períodos no resultó útil para el objetivo buscado por el usuario. Se cierra esta historia y se descartan sus verificaciones restantes.
 
-Se conserva la implementación actual de UF en el dashboard, incluida la consulta del servidor, y los cambios locales de comparación y renombrado del gráfico. El cierre es documental: no retira UF ni incorpora otra presentación. IPC, TPM e Imacec permanecen como propuestas independientes.
+El cierre inicial conservó la implementación de UF en el dashboard, incluida la consulta del servidor, y los cambios locales de comparación y renombrado del gráfico. IPC, TPM e Imacec permanecen como propuestas independientes.
 
-### Implementado y verificado
+### Decisión posterior: retirar UF del dashboard (27-11-2026)
+
+A petición del usuario, se retiran la selección, consulta y comparación de UF de la interfaz. Se elimina el selector de indicadores y el dashboard queda dedicado a consultar y comparar dólar.
+
+Se conservan `/api/uf`, la consulta al Banco Central, sus pruebas de integración y la estructura compartida (`IndicatorChart`, `indicator-client` y las rutas por indicador). El componente del gráfico mantiene su nombre general.
+
+Las pruebas E2E de selección y visualización UF se sustituyen por una prueba que verifica que el dashboard ofrece dólar y no envía consultas UF. Las expectativas de las pruebas del dólar se mantienen.
+
+La historia UF permanece cerrada. El siguiente resumen describe la implementación verificada antes de retirarla del dashboard.
+
+### Implementado y verificado antes del retiro
 
 - Consulta de la serie UF desde el servidor, con credenciales protegidas, filtrado de observaciones inválidas y manejo de respuestas vacías y fallos del proveedor.
 - Selección de UF y consulta histórica individual con gráfico en CLP/UF, fechas y valores en el tooltip.

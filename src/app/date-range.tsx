@@ -6,14 +6,14 @@ import { getPreviousMonthRange, getTodayInSantiago } from "../lib/dates";
 import type { DollarObservation } from "../lib/dollar";
 import { fetchIndicatorObservations } from "../lib/indicator-client";
 import { getPeriodLabel, type DollarPeriod, type DollarPeriodResult } from "../lib/dollar-comparison";
-import DollarChart from "./dollar-chart";
+import IndicatorChart from "./indicator-chart";
 
 type QueryResult =
   | { mode: "single"; observations: DollarObservation[] }
   | { mode: "comparison"; periods: DollarPeriodResult[] };
 
 export default function DateRange() {
-  const [indicator, setIndicator] = useState<"dollar" | "uf">("dollar");
+  const indicator = "dollar";
   const [today] = useState(getTodayInSantiago);
   const previousMonth = getPreviousMonthRange(today);
   const [startDate, setStartDate] = useState(`${today.slice(0, 7)}-01`);
@@ -108,14 +108,6 @@ export default function DateRange() {
       event.preventDefault();
       if (!isLoading) queryForm(event.currentTarget, comparisonEnabled);
     }}>
-      <label htmlFor="indicator">Indicador</label>
-      <select id="indicator" value={indicator} disabled={isLoading} onChange={(event) => {
-        setIndicator(event.currentTarget.value === "uf" ? "uf" : "dollar");
-        setResult(null);
-      }}>
-        <option value="dollar">Dólar observado</option>
-        <option value="uf">UF</option>
-      </select>
       <label>
         <input type="checkbox" checked={comparisonEnabled} disabled={isLoading} onChange={(event) => {
           const enabled = event.currentTarget.checked;
@@ -171,7 +163,7 @@ export default function DateRange() {
       {!isLoading && !error && result?.mode === "single" && !hasData && (
         <p>Sin datos para el período seleccionado.</p>
       )}
-      {hasData && result && (indicator === "dollar" || result.mode === "single") && <DollarChart result={result} indicator={indicator} />}
+      {hasData && result && <IndicatorChart result={result} indicator={indicator} />}
     </form>
   );
 }
