@@ -34,7 +34,7 @@ export default function DateRange() {
       const observations = await fetchIndicatorObservations(startDate, endDate, indicator);
       setResult({ mode: "single", observations });
     } catch {
-      setError("No fue posible consultar el dólar. Intenta nuevamente.");
+      setError(`No fue posible consultar ${indicator === "uf" ? "la UF" : "el dólar"}. Intenta nuevamente.`);
     } finally {
       setIsLoading(false);
     }

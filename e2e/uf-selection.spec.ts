@@ -156,3 +156,29 @@ test("Informa ausencia de datos en una consulta UF", async ({ page }) => {
   await expect(chart).toHaveAttribute("aria-label", /02-11-2026.*40000\.25/);
   await expect(main.getByText("Sin datos para el período seleccionado.", { exact: true })).toHaveCount(0);
 });
+
+test("Informa fallos del servicio en una consulta UF", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-11-11T15:00:00Z"));
+  await page.route("**/api/dollar?*", (route) => route.fulfill({ json: [] }));
+  let failed = true;
+  await page.route("**/api/uf?*", (route) => failed
+    ? route.fulfill({ status: 502, json: { error: "Detalle interno del proveedor" } })
+    : route.fulfill({ json: [{ indexDateString: "02-11-2026", value: "40000.25", statusCode: "OK" }] }));
+  await page.goto("/");
+  const consult = page.getByRole("button", { name: "Consultar", exact: true });
+  await expect(consult).toBeEnabled();
+  await page.getByLabel("Indicador", { exact: true }).selectOption("uf");
+  await consult.click();
+  const main = page.getByRole("main");
+  await expect(main.getByRole("alert")).toHaveText("No fue posible consultar la UF. Intenta nuevamente.");
+  await expect(main.getByRole("status")).toHaveCount(0);
+  await expect(main.getByText("Sin datos para el período seleccionado.", { exact: true })).toHaveCount(0);
+  await expect(main.getByRole("img")).toHaveCount(0);
+  await expect(consult).toBeEnabled();
+
+  failed = false;
+  await consult.click();
+  await expect(main.getByRole("img", { name: /UF/ })).toHaveAttribute("aria-label", /02-11-2026.*40000\.25/);
+  await expect(main.getByRole("alert")).toHaveCount(0);
+  await expect(main.getByRole("status")).toHaveCount(0);
+});
