@@ -125,6 +125,7 @@ test("Espera ambas respuestas, bloquea envíos y modo, retira curvas anteriores 
   });
   try {
     await openDashboard(page);
+    const form = page.locator("form").filter({ has: page.getByLabel("Activar comparación", { exact: true }) });
     await selectPeriods(page);
     await page.getByRole("button", { name: "Comparar", exact: true }).click();
     const chart = page.getByRole("img", { name: /Comparación del dólar/ });
@@ -132,7 +133,7 @@ test("Espera ambas respuestas, bloquea envíos y modo, retira curvas anteriores 
     hold = true;
     const before = requests.length;
     await page.getByRole("button", { name: "Comparar", exact: true }).click();
-    const status = page.getByRole("main").getByRole("status");
+    const status = form.getByRole("status");
     await expect(status).toContainText("Período 1 (2026-09-01 a 2026-09-30)");
     await expect(status).toContainText("Período 2 (2026-10-01 a 2026-10-31)");
     await expect(page.getByRole("button", { name: "Comparar", exact: true })).toBeDisabled();
@@ -140,7 +141,7 @@ test("Espera ambas respuestas, bloquea envíos y modo, retira curvas anteriores 
     await expect(page.getByLabel("Fecha inicial", { exact: true })).toBeDisabled();
     await expect(chart).toHaveCount(0);
     // Incluso un envío programático no inicia otra consulta durante la carga.
-    await page.locator("form").evaluate((form: HTMLFormElement) => form.requestSubmit());
+    await form.evaluate((element: HTMLFormElement) => element.requestSubmit());
     await expect.poll(() => requests.length - before).toBe(2);
     release();
     await expect(chart).toBeVisible();
@@ -325,12 +326,13 @@ test("Acepta el mes actual en su último día", async ({ page }) => {
   });
   await page.clock.setFixedTime(new Date("2026-11-30T15:00:00Z"));
   await page.goto("/");
+  const form = page.locator("form").filter({ has: page.getByLabel("Activar comparación", { exact: true }) });
   await expect(page.getByLabel("Activar comparación")).toBeEnabled();
   const before = requests.length;
   await page.getByLabel("Activar comparación").check();
   await page.getByRole("button", { name: "Comparar", exact: true }).click();
   await expect(page.getByRole("img", { name: /Comparación del dólar/ })).toBeVisible();
-  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(form.getByRole("alert")).toHaveCount(0);
   expect(requests.slice(before).map((url) => Object.fromEntries(url.searchParams))).toEqual(expect.arrayContaining([
     { startDate: "2026-11-01", endDate: "2026-11-30" },
     { startDate: "2026-10-01", endDate: "2026-10-31" },
